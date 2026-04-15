@@ -163,21 +163,9 @@ pub fn stdout() -> Stdout {
 
 #[doc(hidden)]
 pub fn __print_impl(args: core::fmt::Arguments) {
-        // 前景蓝色
-        const BLUE: &str = "\x1b[34m";
-        // 重置颜色
-        const RESET: &str = "\x1b[0m";
-    
     if cfg!(feature = "smp") {
-        // synchronize using the lock in axlog, to avoid interleaving
-        // with kernel logs
-        arceos_api::stdio::ax_console_write_fmt(format_args!("{}", BLUE)).unwrap();
         arceos_api::stdio::ax_console_write_fmt(args).unwrap();
-        arceos_api::stdio::ax_console_write_fmt(format_args!("{}", RESET)).unwrap();
     } else {
-        let mut out = stdout().lock();
-        out.write_fmt(format_args!("{}", BLUE)).unwrap();
-        out.write_fmt(args).unwrap();
-        out.write_fmt(format_args!("{}", RESET)).unwrap();
+        stdout().lock().write_fmt(args).unwrap();
     }
 }
