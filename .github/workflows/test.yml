@@ -54,8 +54,8 @@ jobs:
         run: |
           SYSROOT=$(rustc --print sysroot)
           LLVM_BIN="$SYSROOT/lib/rustlib/x86_64-unknown-linux-gnu/bin"
-          cp "$LLVM_BIN/llvm-objcopy" ~/.cargo/bin/rust-objcopy
-          cp "$LLVM_BIN/llvm-objdump" ~/.cargo/bin/rust-objdump
+          ln -sf "$LLVM_BIN/llvm-objcopy" ~/.cargo/bin/rust-objcopy
+          ln -sf "$LLVM_BIN/llvm-objdump" ~/.cargo/bin/rust-objdump
 
       - name: Run basic
         id: basic_points
