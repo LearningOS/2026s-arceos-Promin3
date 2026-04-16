@@ -63,6 +63,8 @@ jobs:
           qemu-system-riscv64 --version
           cargo --version
 
+          cd arceos && cargo update -p indexmap --precise 2.6.0 && cd ..
+
           ./scripts/total-test.sh | tee tmp.txt
           score=$(cat tmp.txt | tail -n1)
 
