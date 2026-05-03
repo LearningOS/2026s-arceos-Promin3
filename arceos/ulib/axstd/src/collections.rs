@@ -36,7 +36,7 @@ enum Entry {
     Occupied(String, u32),
 }
 
-
+/// Only support [[key: String, value: u32]], fuction: insert, get, remove, iter.
 pub struct HashMap {
     buckets: Vec<Entry>,
     seed: u128,
@@ -66,8 +66,16 @@ impl HashMap {
         (hash_str(key, self.seed) as usize) % self.buckets.len()
     }
 
+    /// if meet Empty, insert the key and value, return.
+    /// if meet Deleted, set the first Deleted index as the insert index, insert the key and value, return.
+    /// if meet Occupied, check if key is the same, if same, replace the value, return.
+    /// if not same, continue to next index.
+    /// if meet the end of the vector, return.
     pub fn insert(&mut self, key: String, value: u32) {
         let mut idx = self.index(&key);
+
+        // subsequent elements may have target Entry and should be updated. 
+        // if immediately insert into Deleted Entry, Entry that should be updated will be ignored. Cause logic error.
         let mut first_deleted = None;
 
         for _ in 0..self.buckets.len() {
@@ -94,6 +102,11 @@ impl HashMap {
         }
     }
 
+    /// if meet Empty, return None.
+    /// if meet Deleted, continue to next index.
+    /// if meet Occupied, check if key is the same, if same, return Some(value).
+    /// if not same, continue to next index.
+    /// if meet the end of the vector, return None.
     pub fn get(&self, key: &str) -> Option<u32> {
         let mut idx = self.index(key);
 
@@ -113,25 +126,31 @@ impl HashMap {
         None
     }
 
-    pub fn remove(&mut self, key: &str) -> Option<u32> {
+    
+    /// if meet Empty, return None.
+    /// if meet Deleted, continue to next index.
+    /// if meet Occupied, check if key is the same, if same, replace with Deleted, return Some(value).
+    /// if not same, continue to next index.
+    /// if meet the end of the vector, return None.
+    pub fn remove(&mut self, key: &str) -> Option<u32> {    
         let mut idx = self.index(key);
 
         for _ in 0..self.buckets.len() {
             match &self.buckets[idx] {
                 Entry::Empty => return None,
                 Entry::Deleted => {}
-                Entry::Occupied(k, _) if k == key => {
-                    let old = core::mem::replace(
-                        &mut self.buckets[idx],
-                        Entry::Deleted,
-                    );
-
-                    if let Entry::Occupied(_, v) = old {
-                        self.size -= 1;
-                        return Some(v);
+                Entry::Occupied(k, _) => {
+                    if k == key {
+                        let old = core::mem::replace(
+                            &mut self.buckets[idx],
+                            Entry::Deleted,
+                        );
+                        if let Entry::Occupied(_, v) = old {
+                            self.size -= 1;
+                            return Some(v);
+                        }
                     }
                 }
-                _ => {}
             }
             idx = (idx + 1) % self.buckets.len();
         }

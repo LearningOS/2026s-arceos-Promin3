@@ -1,5 +1,10 @@
 {
+  "rust-analyzer.linkedProjects": ["arceos/Cargo.toml"],
   "rust-analyzer.cargo.target": "riscv64gc-unknown-none-elf",
   "rust-analyzer.cargo.allTargets": false,
-  "rust-analyzer.cargo.features": ["axstd"]
+  "rust-analyzer.cargo.features": ["axstd"],
+  "rust-analyzer.cargo.extraEnv": {
+    "AX_PLATFORM": "riscv64-qemu-virt",
+    "AX_SMP": "1"
+  }
 }
