@@ -165,6 +165,22 @@ impl VfsNodeOps for DirNode {
         }
     }
 
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        log::debug!("rename at ramfs: {} to {}", src_path, dst_path);
+        let (src_name, src_rest) = split_path(src_path);
+        let (dst_name, dst_rest) = split_path(dst_path);
+        log::debug!("src_name: {}, src_rest: {:?}", src_name, src_rest);
+        log::debug!("dst_name: {}, dst_rest: {:?}", dst_name, dst_rest);
+
+        use crate::alloc::string::ToString;
+        let new_name = dst_rest.unwrap_or_default().to_string();
+        let mut children = self.children.write();
+        if let Some((_old_name, vfs_node_ref)) = children.remove_entry(src_name) {
+            children.insert(new_name, vfs_node_ref);
+        }
+        Ok(())
+    }
+
     axfs_vfs::impl_vfs_dir_default! {}
 }
 
