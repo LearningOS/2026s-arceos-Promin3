@@ -6,7 +6,9 @@ use axhal::trap::{register_trap_handler, SYSCALL};
 use axerrno::LinuxError;
 use axtask::current;
 use axtask::TaskExtRef;
+use axhal::mem::{VirtAddr, PAGE_SIZE_4K};
 use axhal::paging::MappingFlags;
+use memory_addr::{MemoryAddr, VirtAddrRange};
 use arceos_posix_api as api;
 
 const SYS_IOCTL: usize = 29;
@@ -133,14 +135,61 @@ fn handle_syscall(tf: &TrapFrame, syscall_num: usize) -> isize {
 
 #[allow(unused_variables)]
 fn sys_mmap(
-    addr: *mut usize,
+    _addr: *mut usize,
     length: usize,
     prot: i32,
     flags: i32,
     fd: i32,
     _offset: isize,
 ) -> isize {
-    unimplemented!("no sys_mmap!");
+    syscall_body!(sys_mmap, {
+        if length == 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
+        let prot = MmapProt::from_bits_truncate(prot);
+        let is_anonymous = MmapFlags::from_bits_truncate(flags).contains(MmapFlags::MAP_ANONYMOUS);
+
+        let map_size = length.align_up_4k();
+        let map_flags = MappingFlags::from(prot);
+        let curr = current();
+        let mut aspace = curr.task_ext().aspace.lock();
+        let limit = VirtAddrRange::from_start_size(aspace.base(), aspace.size());
+        let map_start = aspace
+            .find_free_area(VirtAddr::from(PAGE_SIZE_4K), map_size, limit)
+            .or_else(|| aspace.find_free_area(aspace.base(), map_size, limit))
+            .ok_or(LinuxError::ENOMEM)?;
+
+        aspace
+            .map_alloc(map_start, map_size, map_flags, true)
+            .map_err(|_| LinuxError::ENOMEM)?;
+
+        if !is_anonymous {
+            if fd < 0 {
+                return Err(LinuxError::EBADF);
+            }
+            let mut data = alloc::vec![0u8; length];
+            let mut copied = 0usize;
+            while copied < length {
+                let n = api::sys_read(
+                    fd,
+                    data[copied..].as_mut_ptr() as *mut c_void,
+                    length - copied,
+                );
+                if n < 0 {
+                    return Err(LinuxError::EIO);
+                }
+                if n == 0 {
+                    break;
+                }
+                copied += n as usize;
+            }
+            aspace
+                .write(map_start, &data[..copied])
+                .map_err(|_| LinuxError::EFAULT)?;
+        }
+        Ok(map_start.as_usize())
+    })
 }
 
 fn sys_openat(dfd: c_int, fname: *const c_char, flags: c_int, mode: api::ctypes::mode_t) -> isize {
